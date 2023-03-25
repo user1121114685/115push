@@ -45,6 +45,8 @@ func Import(dirid, url, shareCid string) {
 
 }
 
+var tmpStep int64 = 0
+
 func importFileForDir(dirid, url string, tickets *utils.FileList, wg *importer, step *int64) {
 	// 延迟执行一个匿名函数
 	defer func() {
@@ -54,6 +56,7 @@ func importFileForDir(dirid, url string, tickets *utils.FileList, wg *importer, 
 			log.Println("发生致命错误！！！ 请将错误反馈给开发者，即将开始重新导入....")
 			log.Println(err)
 			time.Sleep(5 * time.Second)
+			tmpStep = *step
 			*step = ^*step + 1 //现在步数是负的了
 			importFileForDir(dirid, url, tickets, wg, step)
 		}
@@ -75,9 +78,13 @@ func importFileForDir(dirid, url string, tickets *utils.FileList, wg *importer, 
 				break
 			}
 			// 判断是否为断点续传
-			if *step <= 0 {
+			if *step < 0 {
 				*step++
 				continue
+			}
+			if *step == 0 {
+				*step = tmpStep
+				tmpStep = 0
 			}
 			var fileList utils.FileList
 
