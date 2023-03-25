@@ -6,6 +6,8 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"regexp"
+	"time"
 )
 
 var runServer bool
@@ -57,7 +59,17 @@ func main() {
 			var shareCid string
 			fmt.Println("请输入分享者分享的CID,不是自己的CID,是分享者的CID!!!")
 			fmt.Scanln(&shareCid)
+			_isNumber, _ := regexp.MatchString("^[0-9]+$", cid+shareCid)
+			if !_isNumber {
+				// 不是数字 说明输入有误
+				fmt.Println("自己的CID和分享者的CID只能是数字，请重新检查。")
+				time.Sleep(2 * time.Second)
+				continue
+			}
 			if cid == "" || url == "" || shareCid == "" {
+				// 不是数字 说明输入有误
+				fmt.Println("信息没有输入完整，请重新检查。")
+				time.Sleep(2 * time.Second)
 				continue
 			}
 			receiver.Import(cid, url, shareCid)

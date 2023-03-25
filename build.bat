@@ -8,4 +8,8 @@ SET GOARCH=arm
 go build -ldflags="-s -w -X 'main.Version=%currenttime%'" -o 115push_linux_arm
 SET GOARCH=arm64
 go build -ldflags="-s -w -X 'main.Version=%currenttime%'" -o 115push_linux_arm64
+SET GOOS=darwin
+go build -ldflags="-s -w -X 'main.Version=%currenttime%'" -o 115push_Mac_arm64
+SET GOARCH=amd64
+go build -ldflags="-s -w -X 'main.Version=%currenttime%'" -o 115push_Mac_amd64
 D:\7-Zip\7z.exe a 115push_all.zip 115push_*

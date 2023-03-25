@@ -37,12 +37,15 @@ func Import(dirid, url, shareCid string) {
 		}
 		break
 	}
-
-	importFileForDir(firstDirID, url, &tickets)
+	wg := NewImporter(5)
+	var step int64 = 0
+	importFileForDir(firstDirID, url, &tickets, wg, &step)
+	wg.producerWaitGroupPool.Wait()
+	close(wg.taskChannel)
 
 }
 
-func importFileForDir(dirid, url string, tickets *utils.FileList) {
+func importFileForDir(dirid, url string, tickets *utils.FileList, wg *importer, step *int64) {
 	// 延迟执行一个匿名函数
 	defer func() {
 		// 调用 recover 来捕获 panic 的值
@@ -51,10 +54,13 @@ func importFileForDir(dirid, url string, tickets *utils.FileList) {
 			log.Println("发生致命错误！！！ 请将错误反馈给开发者，即将开始重新导入....")
 			log.Println(err)
 			time.Sleep(5 * time.Second)
-			importFileForDir(dirid, url, tickets)
+			*step = ^*step + 1 //现在步数是负的了
+			importFileForDir(dirid, url, tickets, wg, step)
 		}
 	}()
+	wg.producerWaitGroupPool.Add()
 	for _, ticket := range tickets.Files {
+
 		if ticket.IsDir {
 			var id string
 			var err error
@@ -68,16 +74,22 @@ func importFileForDir(dirid, url string, tickets *utils.FileList) {
 				}
 				break
 			}
-
+			// 判断是否为断点续传
+			if *step <= 0 {
+				*step++
+				continue
+			}
 			var fileList utils.FileList
 
 			getFileList(url+"/115/file_get?cid="+ticket.CID, &fileList)
 			if &fileList == nil {
 				continue
 			}
-			importFileForDir(id, url, &fileList)
+			go importFileForDir(id, url, &fileList, wg, step)
 			continue
 		}
+		// 有时候发生了致命错误，然而不知道罪魁祸首，加上这个一目了然
+		log.Println("准备导入   " + ticket.ImportTicket.FileName)
 		err := login.Agent.Import(dirid, &ticket.ImportTicket)
 		if err != nil {
 			if ie, ok := err.(*elevengo.ErrImportNeedCheck); ok {
@@ -87,16 +99,20 @@ func importFileForDir(dirid, url string, tickets *utils.FileList) {
 					ticket.ImportTicket.SignValue = signValue
 					err = login.Agent.Import(dirid, &ticket.ImportTicket)
 					if err != nil {
+						// 不管成功与否 都标记一步 保持计数器一致
+						*step++
 						// 失败重新导入增加那么一丝丝可能性 能降低失败机率
 						reImportFileForDir(dirid, url, ticket.PickCode, ticket.ImportTicket)
 						continue
 					}
-					log.Println("导入成功   " + ticket.ImportTicket.FileName)
 				}
 			}
 		}
-	}
+		*step++
+		log.Println("导入成功   " + ticket.ImportTicket.FileName)
 
+	}
+	wg.producerWaitGroupPool.Done()
 }
 
 func reImportFileForDir(dirid, url, pickCode string, ImportTicket elevengo.ImportTicket) {
@@ -123,6 +139,7 @@ func reImportFileForDir(dirid, url, pickCode string, ImportTicket elevengo.Impor
 				}
 			}
 		}
+
 	}
 	log.Println("导入失败   " + ImportTicket.FileName)
 }
@@ -157,4 +174,17 @@ func getCalculateSignValue(postUrl, pickcode, signRange string) string {
 		return ""
 	}
 	return string(sig)
+}
+
+type importer struct {
+	taskChannel chan int
+	// 通过pool支持设置上限
+	producerWaitGroupPool *utils.WaitGroupPool
+}
+
+func NewImporter(workNum int) *importer {
+	return &importer{
+		taskChannel:           make(chan int, 300),
+		producerWaitGroupPool: utils.NewWaitGroupPool(workNum),
+	}
 }
