@@ -48,6 +48,7 @@ func fileGet(w http.ResponseWriter, r *http.Request) {
 	rangeFileList(cid, ticket)
 	marshal, err := json.Marshal(ticket)
 	if err != nil {
+		fmt.Fprintln(w, err.Error())
 		return
 	}
 	log.Println("用户获取目录 ", ticket.FirstDirName)
@@ -101,7 +102,7 @@ func CalculateSignValue(w http.ResponseWriter, r *http.Request) {
 	signValue, err := login.Agent.ImportCalculateSignValue(r.FormValue("pickcode"), r.FormValue("signRange"))
 	if err != nil {
 		log.Println("获取二次随机Sha1失败", err)
-		//fmt.Fprintf(w, err.Error())
+		fmt.Fprintf(w, "invalid")
 		return
 	}
 	fmt.Fprintf(w, signValue)

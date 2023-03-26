@@ -21,9 +21,9 @@ func Import(dirid, url, shareCid string) {
 	url = strings.TrimRight(url, "/")
 	getFileList(url+"/115/file_get?cid="+shareCid, &tickets)
 	if &tickets == nil {
-		log.Println("没有成功获取到文件列表.....")
-		time.Sleep(3 * time.Second)
+		log.Println("没有成功获取到文件列表 ", shareCid)
 		return
+
 	}
 	var firstDirID string
 	var err error
@@ -81,10 +81,12 @@ func importFileForDir(dirid, url string, tickets *utils.FileList, wg *importer) 
 			}
 
 			var fileList utils.FileList
-
+			// 这种套娃的写法我很不愿意
 			getFileList(url+"/115/file_get?cid="+ticket.CID, &fileList)
 			if &fileList == nil {
+				log.Println("获取文件列表失败 ", ticket.ImportTicket.FileName)
 				continue
+
 			}
 			go importFileForDir(id, url, &fileList, wg)
 			continue
@@ -101,7 +103,7 @@ func importFileForDir(dirid, url string, tickets *utils.FileList, wg *importer) 
 		if err != nil {
 			if ie, ok := err.(*elevengo.ErrImportNeedCheck); ok {
 				signValue := getCalculateSignValue(url, ticket.PickCode, ie.SignRange)
-				if signValue != "" {
+				if signValue != "invalid" {
 					ticket.ImportTicket.SignKey = ie.SignKey
 					ticket.ImportTicket.SignValue = signValue
 					err = login.Agent.Import(dirid, &ticket.ImportTicket)
@@ -111,6 +113,9 @@ func importFileForDir(dirid, url string, tickets *utils.FileList, wg *importer) 
 						continue
 					}
 				}
+				// 失败重新导入增加那么一丝丝可能性 能降低失败机率
+				reImportFileForDir(dirid, url, ticket.PickCode, ticket.ImportTicket)
+				continue
 			}
 		}
 		log.Println("导入成功   " + ticket.ImportTicket.FileName)
@@ -128,7 +133,7 @@ func reImportFileForDir(dirid, url, pickCode string, ImportTicket elevengo.Impor
 		if err != nil {
 			if ie, ok := err.(*elevengo.ErrImportNeedCheck); ok {
 				signValue := getCalculateSignValue(url, pickCode, ie.SignRange)
-				if signValue != "" {
+				if signValue != "invalid" {
 					iport_ticket.SignKey = ie.SignKey
 					iport_ticket.SignValue = signValue
 					err = login.Agent.Import(dirid, &iport_ticket)
@@ -136,12 +141,12 @@ func reImportFileForDir(dirid, url, pickCode string, ImportTicket elevengo.Impor
 						log.Println(iport_ticket.FileName, "  失败重试中....")
 						log.Println(iport_ticket, ie)
 						log.Println(err)
-
 						continue
 					}
 					log.Println("导入成功   " + iport_ticket.FileName)
 					return
 				}
+				continue
 			}
 		}
 
@@ -150,20 +155,29 @@ func reImportFileForDir(dirid, url, pickCode string, ImportTicket elevengo.Impor
 }
 
 func getFileList(url string, tickets *utils.FileList) {
-	res, err := http.Get(url)
-	if err != nil {
+	for i := 0; i < 2; i++ {
+
+		res, err := http.Get(url)
+		if err != nil {
+			log.Println("请求文件列表出错", err)
+			continue
+		}
+		body, err := io.ReadAll(res.Body)
+		if err != nil {
+			log.Println("读取body出错", err)
+			continue
+		}
+		err = json.Unmarshal(body, &tickets)
+		if err != nil {
+			log.Println(err)
+			log.Println(string(body))
+			time.Sleep(3 * time.Second)
+			continue
+		}
+		// 所有的都正确 直接返回
 		return
 	}
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		log.Println("读取body出错", err)
-	}
-	err = json.Unmarshal(body, &tickets)
-	if err != nil {
-		log.Println(err)
-		log.Println(string(body))
-		return
-	}
+
 }
 
 func getCalculateSignValue(postUrl, pickcode, signRange string) string {
@@ -172,11 +186,14 @@ func getCalculateSignValue(postUrl, pickcode, signRange string) string {
 	formValues.Set("signRange", signRange)
 	signValue, err := http.PostForm(postUrl+"/115/calculate_sign_value", formValues)
 	if err != nil {
-		return ""
+		return "invalid"
 	}
 	sig, err := io.ReadAll(signValue.Body)
 	if err != nil {
-		return ""
+		return "invalid"
+	}
+	if strings.Contains(string(sig), "invalid") {
+		return "invalid"
 	}
 	return string(sig)
 }
