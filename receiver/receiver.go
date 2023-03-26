@@ -64,8 +64,8 @@ func importFileForDir(dirid, url string, tickets *utils.FileList, wg *importer) 
 			var err error
 			for i := 0; i < 20; i++ {
 				// 已经导入的部分 直接赋值
-				if *ticket.MakeDIrCid != "" {
-					id = *ticket.MakeDIrCid
+				if ticket.MakeDIrCid != "" {
+					id = ticket.MakeDIrCid
 					break
 				}
 				id, err = login.Agent.DirMake(dirid, ticket.ImportTicket.FileName)
@@ -76,7 +76,7 @@ func importFileForDir(dirid, url string, tickets *utils.FileList, wg *importer) 
 					continue
 				}
 				// 没有新建文件夹的ID 新建一次文件夹并赋值
-				ticket.MakeDIrCid = &id
+				ticket.MakeDIrCid = id
 				break
 			}
 
@@ -90,14 +90,14 @@ func importFileForDir(dirid, url string, tickets *utils.FileList, wg *importer) 
 			continue
 		}
 		// 如果已经导入 则跳过该文件
-		if *ticket.IsImport {
+		if ticket.IsImport {
 			continue
 		}
 
 		// 有时候发生了致命错误，然而不知道罪魁祸首，加上这个一目了然
 		log.Println("准备导入   " + ticket.ImportTicket.FileName)
 		err := login.Agent.Import(dirid, &ticket.ImportTicket)
-		*ticket.IsImport = true
+		ticket.IsImport = true
 		if err != nil {
 			if ie, ok := err.(*elevengo.ErrImportNeedCheck); ok {
 				signValue := getCalculateSignValue(url, ticket.PickCode, ie.SignRange)
