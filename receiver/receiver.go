@@ -149,7 +149,8 @@ func reImportFileForDir(dirid, url, pickCode string, ImportTicket elevengo.Impor
 				continue
 			}
 		}
-
+		log.Println("导入成功   " + iport_ticket.FileName)
+		return
 	}
 	log.Println("导入失败   " + ImportTicket.FileName)
 }

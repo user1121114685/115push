@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-var Agent = elevengo.New(option.CooldownOption{Min: 100, Max: 2000})
+var Agent = elevengo.New(option.CooldownOption{Min: 100, Max: 1003})
 
 func Login() {
 
