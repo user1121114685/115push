@@ -4,6 +4,7 @@ import (
 	"115push/login"
 	"115push/utils"
 	"encoding/json"
+	"fmt"
 	"github.com/deadblue/elevengo"
 	"io"
 	"log"
@@ -16,6 +17,7 @@ import (
 
 func Import(dirid, url, shareCid string) {
 	login.Login()
+	startT := time.Now() //计算当前时间
 	var tickets utils.FileList
 	// 去掉最右边的 /
 	url = strings.TrimRight(url, "/")
@@ -41,7 +43,13 @@ func Import(dirid, url, shareCid string) {
 	importFileForDir(firstDirID, url, &tickets, wg)
 	wg.producerWaitGroupPool.Wait()
 	close(wg.taskChannel)
-
+	tc := time.Since(startT) //计算耗时
+	hours := int(tc.Hours())
+	minutes := int(tc.Minutes()) % 60
+	seconds := int(tc.Seconds()) % 60
+	fmt.Println()
+	log.Printf("本次导入：共计耗时  %02d:%02d:%02d\n", hours, minutes, seconds)
+	fmt.Println()
 }
 
 func importFileForDir(dirid, url string, tickets *utils.FileList, wg *importer) {
