@@ -3,9 +3,11 @@ package main
 import (
 	"115push/receiver"
 	"115push/server"
+	"bufio"
 	"flag"
 	"fmt"
 	"log"
+	"os"
 	"regexp"
 	"time"
 )
@@ -51,8 +53,24 @@ func main() {
 		case 2:
 
 			var cid string
-			fmt.Println("请输入自己目录的CID")
-			fmt.Scanln(&cid)
+
+			if receiver.FindLastCid() {
+				fmt.Println("上一次使用的CID是： ", receiver.Lastchoice)
+				fmt.Println("按回车键使用上一次的CID,否则按任意键开始输入新的CID")
+				bytes, _ := bufio.NewReader(os.Stdin).ReadBytes('\n')
+
+				if len(bytes) == 2 {
+					cid = receiver.Lastchoice
+				}
+			}
+			if cid == "" {
+
+				fmt.Println("请输入自己目录的CID")
+				fmt.Scanln(&cid)
+				// 将字节切片写入文件，如果文件不存在则创建，如果存在则覆盖
+				os.WriteFile("./last_cid.txt", []byte(cid), 0644)
+
+			}
 			var url string
 			fmt.Println("请输入分享者url,例如： http://127.0.0.1:1150")
 			fmt.Scanln(&url)
