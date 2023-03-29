@@ -39,7 +39,7 @@ func Import(dirid, url, shareCid string) {
 		}
 		break
 	}
-	wg := NewImporter(5)
+	wg := NewImporter(4)
 	importFileForDir(firstDirID, url, &tickets, wg)
 	wg.producerWaitGroupPool.Wait()
 	close(wg.taskChannel)
@@ -70,6 +70,7 @@ func importFileForDir(dirid, url string, tickets *utils.FileList, wg *importer) 
 		if ticket.IsDir {
 			var id string
 			var err error
+			var _name = ticket.ImportTicket.FileName
 			for i := 0; i < 20; i++ {
 				// 已经导入的部分 直接赋值
 				if ticket.MakeDIrCid != "" {
@@ -80,7 +81,7 @@ func importFileForDir(dirid, url string, tickets *utils.FileList, wg *importer) 
 				if err != nil && err.Error() == "target already exists" {
 					// target already exists
 					//log.Println("创建 第一级目录失败", err)
-					ticket.ImportTicket.FileName = ticket.ImportTicket.FileName + "_" + strconv.Itoa(i)
+					ticket.ImportTicket.FileName = _name + "_" + strconv.Itoa(i)
 					continue
 				}
 				// 没有新建文件夹的ID 新建一次文件夹并赋值
@@ -109,7 +110,8 @@ func importFileForDir(dirid, url string, tickets *utils.FileList, wg *importer) 
 		err := login.Agent.Import(dirid, &ticket.ImportTicket)
 		ticket.IsImport = true
 		if err != nil {
-			if ie, ok := err.(*elevengo.ErrImportNeedCheck); ok {
+			ie, ok := err.(*elevengo.ErrImportNeedCheck)
+			if ok {
 				signValue := getCalculateSignValue(url, ticket.PickCode, ie.SignRange)
 				if signValue != "invalid" {
 					ticket.ImportTicket.SignKey = ie.SignKey
@@ -125,6 +127,10 @@ func importFileForDir(dirid, url string, tickets *utils.FileList, wg *importer) 
 				reImportFileForDir(dirid, url, ticket.PickCode, ticket.ImportTicket)
 				continue
 			}
+			//log.Println(err)
+			// 失败重新导入增加那么一丝丝可能性 能降低失败机率
+			reImportFileForDir(dirid, url, ticket.PickCode, ticket.ImportTicket)
+			continue
 		}
 		log.Println("导入成功   " + ticket.ImportTicket.FileName)
 
@@ -133,13 +139,25 @@ func importFileForDir(dirid, url string, tickets *utils.FileList, wg *importer) 
 }
 
 func reImportFileForDir(dirid, url, pickCode string, ImportTicket elevengo.ImportTicket) {
-
+	var err error
 	for i := 0; i < 5; i++ {
-		time.Sleep(1 * time.Second)
+
 		iport_ticket := ImportTicket
-		err := login.Agent.Import(dirid, &iport_ticket)
+		iport_ticket.SignKey = ""
+		iport_ticket.SignValue = ""
+		err = login.Agent.Import(dirid, &iport_ticket)
 		if err != nil {
-			if ie, ok := err.(*elevengo.ErrImportNeedCheck); ok {
+			if err.Error() == "sig invalid" {
+				time.Sleep(5 * time.Second)
+				continue
+			}
+			if err.Error() == "invalid ec data" {
+				log.Println("速度过快,需要等待130秒....")
+				time.Sleep(130 * time.Second)
+				continue
+			}
+			ie, ok := err.(*elevengo.ErrImportNeedCheck)
+			if ok {
 				signValue := getCalculateSignValue(url, pickCode, ie.SignRange)
 				if signValue != "invalid" {
 					iport_ticket.SignKey = ie.SignKey
@@ -156,11 +174,12 @@ func reImportFileForDir(dirid, url, pickCode string, ImportTicket elevengo.Impor
 				}
 				continue
 			}
+			continue
 		}
 		log.Println("导入成功   " + iport_ticket.FileName)
 		return
 	}
-	log.Println("导入失败   " + ImportTicket.FileName)
+	log.Println("导入失败   "+ImportTicket.FileName, err)
 }
 
 func getFileList(url string, tickets *utils.FileList) {

@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"regexp"
+	"strings"
 	"time"
 )
 
@@ -81,6 +82,14 @@ func main() {
 			if !_isNumber {
 				// 不是数字 说明输入有误
 				fmt.Println("自己的CID和分享者的CID只能是数字，请重新检查。")
+				time.Sleep(2 * time.Second)
+				continue
+			}
+			url = strings.ToLower(url)
+			_isHttp, _ := regexp.MatchString("^https?://", url)
+			if !_isHttp {
+				// 不是数字 说明输入有误
+				fmt.Println("url 不正确 应该包含 http:// 或者 https://")
 				time.Sleep(2 * time.Second)
 				continue
 			}
