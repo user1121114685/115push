@@ -1,6 +1,7 @@
 package main
 
 import (
+	"115push/login"
 	"115push/receiver"
 	"115push/server"
 	"bufio"
@@ -15,10 +16,12 @@ import (
 
 var runServer bool
 var runDebug bool
+var getQr bool
 var Version = "调试版本"
 
 func init() {
 	flag.BoolVar(&runServer, "s", false, "一键运行服务端，方便从linux等设备启动运行。")
+	flag.BoolVar(&getQr, "qr", false, "扫码登录Linux端，从此永不掉线。")
 	flag.BoolVar(&runDebug, "debug", false, "显示更多log信息")
 }
 func main() {
@@ -33,6 +36,9 @@ func main() {
 		server.Run115PushServer()
 		return
 	}
+	if getQr {
+		login.QrCodeLogin()
+	}
 	for {
 		fmt.Println("当前版本 V" + Version)
 		fmt.Println()
@@ -45,6 +51,8 @@ func main() {
 		fmt.Println("1 启动服务端，其他人将通过您提供的链接访问你的115资源")
 		fmt.Println()
 		fmt.Println("2 启动导入，通过输入他人提供的服务端地址，导入115资源")
+		fmt.Println()
+		fmt.Println("3 扫码登录，扫码登录linux端，从此不再掉线")
 		var num int
 		fmt.Scanln(&num)
 		switch num {
@@ -100,6 +108,9 @@ func main() {
 				continue
 			}
 			receiver.Import(cid, url, shareCid)
+			break
+		case 3:
+			login.QrCodeLogin()
 			break
 
 		default:

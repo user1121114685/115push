@@ -1,6 +1,7 @@
 package cookie
 
-type Cookie []struct {
+type Cookies []Cookie
+type Cookie struct {
 	Domain   string `json:"domain"`
 	HostOnly bool   `json:"hostOnly"`
 	HTTPOnly bool   `json:"httpOnly"`

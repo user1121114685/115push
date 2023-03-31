@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-var Agent = elevengo.New(option.CooldownOption{Min: 120, Max: 1003})
+var Agent = elevengo.New(option.CooldownOption{Min: 250, Max: 1003})
 
 func Login() {
 
@@ -28,7 +28,7 @@ func Login() {
 	defer file.Close()
 	_c, err := io.ReadAll(file)
 	log.Println(string(_c))
-	var _cookie cookie.Cookie
+	var _cookie cookie.Cookies
 	err = json.Unmarshal(_c, &_cookie)
 	if err != nil {
 		log.Println("格式化cookie出错", err)
