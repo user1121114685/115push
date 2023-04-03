@@ -30,11 +30,12 @@ func Import(dirid, url, shareCid string) {
 	var firstDirID string
 	var err error
 	for i := 0; i < 20; i++ {
-		firstDirID, err = login.Agent.DirMake(dirid, tickets.FirstDirName)
+		_name := tickets.FirstDirName
+		firstDirID, err = login.Agent.DirMake(dirid, _name)
 		if err != nil && err.Error() == "target already exists" {
 			// target already exists
 			//log.Println("创建 第一级目录失败", err)
-			tickets.FirstDirName = tickets.FirstDirName + "_" + strconv.Itoa(i)
+			_name = _name + "_" + strconv.Itoa(i)
 			continue
 		}
 		break
@@ -152,7 +153,7 @@ func reImportFileForDir(dirid, url, pickCode string, ImportTicket elevengo.Impor
 				continue
 			}
 			if err.Error() == "invalid ec data" {
-				log.Println("速度过快,需要等待130秒....")
+				log.Println("115判定为攻击,需要等待130秒....")
 				time.Sleep(130 * time.Second)
 				continue
 			}
